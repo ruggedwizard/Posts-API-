@@ -4,7 +4,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from . import models
+from . import models, schemas
 from .database import engine,get_db
 models.Base.metadata.create_all(bind=engine)
 import psycopg2
@@ -26,13 +26,13 @@ while True:
         print("Error: ", error)
         time.sleep(6)
 
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
+# class Post(BaseModel):
+#     title: str
+#     content: str
+#     published: bool = True
 
-my_posts= [{"title":"title post 1","content":"content post 1", "id":1}, 
-           {"title":"Final Year Plans","content":"Beat the VC","id":2}]
+# my_posts= [{"title":"title post 1","content":"content post 1", "id":1}, 
+#            {"title":"Final Year Plans","content":"Beat the VC","id":2}]
 @app.get("/")
 async def root():
     return {"message":"welcome to my api"}
@@ -54,7 +54,7 @@ async def get_post(db:Session = Depends(get_db)):
     return {"data":posts}
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-async def create_post(post:Post, db:Session=Depends(get_db)):
+async def create_post(post:schemas.Post, db:Session=Depends(get_db)):
     # Perfroms operation with plain SQL Query 
     # cusor.execute(""" INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,(post.title, post.content, post.published))
     # new_post = cusor.fetchone()
@@ -105,7 +105,7 @@ async def delete_post(id:int,db:Session=Depends(get_db)):
 
 
 @app.put("/posts/{id}")
-async def update_posts(id:int, updated_post:Post, db:Session=Depends(get_db)):
+async def update_posts(id:int, updated_post:schemas.Post, db:Session=Depends(get_db)):
     # Updating With Regular SQL function
     # cusor.execute(""" UPDATE posts SET title=%s, content=%s, published=%s  WHERE id=%s RETURNING * """,(post.title, post.content, post.published,str(id)))
     # updated_post = cusor.fetchone()
