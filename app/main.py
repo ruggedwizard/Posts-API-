@@ -30,7 +30,6 @@ class Post(BaseModel):
     title: str
     content: str
     published: bool = True
-    rating: Optional[int] = None
 
 my_posts= [{"title":"title post 1","content":"content post 1", "id":1}, 
            {"title":"Final Year Plans","content":"Beat the VC","id":2}]
@@ -40,27 +39,46 @@ async def root():
 
 @app.get("/sqlalchemy")
 async def test_posts(db:Session = Depends(get_db)):
-    return {"return": "success"}
+    posts = db.query(models.Post).all()
+
+    return {"return": posts}
 
 @app.get("/posts")
-async def get_post():
-    cusor.execute(""" SELECT * FROM posts""")
-    posts=cusor.fetchall()
+async def get_post(db:Session = Depends(get_db)):
+    # fetch with regular SQL Query
+    # cusor.execute(""" SELECT * FROM posts""")
+    # posts=cusor.fetchall()
+    # ----------------------------
+    # Fetch with SQL Alchemy ORM 
+    posts = db.query(models.Post).all()
     return {"data":posts}
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-async def create_post(post:Post):
-    cusor.execute(""" INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,(post.title, post.content, post.published))
-    new_post = cusor.fetchone()
-    conn.commit()
+async def create_post(post:Post, db:Session=Depends(get_db)):
+    # Perfroms operation with plain SQL Query 
+    # cusor.execute(""" INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,(post.title, post.content, post.published))
+    # new_post = cusor.fetchone()
+    # conn.commit()
+    # --------------
+    # working with ORM SQL Alchemy
+    new_post = models.Post(**post.dict())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
     return {"data":new_post}
 
 
 
 @app.get("/posts/{id}")
-async def get_post(id:int):
-    cusor.execute(""" SELECT * FROM posts WHERE id = %s""",(str(id)))
-    post=cusor.fetchone()
+async def get_post(id:int, db:Session=Depends(get_db)):
+    # Regular SQL Command
+    # cusor.execute(""" SELECT * FROM posts WHERE id = %s""",(str(id)))
+    # post=cusor.fetchone()
+    # ----------
+    # working with SQL ALchemy ORM
+    post = db.query(models.Post).filter(models.Post.id == id).first()  
+
     if not post:
        raise HTTPException(
            status_code= status.HTTP_404_NOT_FOUND,
@@ -70,21 +88,35 @@ async def get_post(id:int):
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(id:int):
-    cusor.execute(""" DELETE FROM posts WHERE id = %s RETURNING * """,str(id))
-    deleted_post= cusor.fetchone()
-    conn.commit()
-    if deleted_post == None:
+async def delete_post(id:int,db:Session=Depends(get_db)):
+    # Delete with Plain SQL Command
+    # cusor.execute(""" DELETE FROM posts WHERE id = %s RETURNING * """,str(id))
+    # deleted_post= cusor.fetchone()
+    # conn.commit()
+    # -------------
+    # Delete with SQL Alchemy ORM 
+    post = db.query(models.Post).filter(models.Post.id == id)
+    if post.first() == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with the id:{id} does not exist")
+    
+    post.delete(synchronize_session=False)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+
 @app.put("/posts/{id}")
-async def update_posts(id:int, post:Post):
-    cusor.execute(""" UPDATE posts SET title=%s, content=%s, published=%s  WHERE id=%s RETURNING * """,(post.title, post.content, post.published,str(id)))
-    updated_post = cusor.fetchone()
-    conn.commit()
-    
-    if update_posts == None:
+async def update_posts(id:int, updated_post:Post, db:Session=Depends(get_db)):
+    # Updating With Regular SQL function
+    # cusor.execute(""" UPDATE posts SET title=%s, content=%s, published=%s  WHERE id=%s RETURNING * """,(post.title, post.content, post.published,str(id)))
+    # updated_post = cusor.fetchone()
+    # conn.commit()
+    # ----------
+    # Updating with SQL Alchemy ORM
+    post_query=db.query(models.Post).filter(models.Post.id==id)
+    post = post_query.first()
+    if post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with the id:{id} does not exist")
     
-    return {"data":updated_post}
+    post_query.update(updated_post.dict(),synchronize_session=False)
+    db.commit()
+    return {"data":post_query.first()}
