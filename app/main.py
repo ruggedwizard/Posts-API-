@@ -1,22 +1,17 @@
 from typing import Optional
 from fastapi import FastAPI, Response,status
 from fastapi.exceptions import HTTPException
-from fastapi.param_functions import Body
+from fastapi.param_functions import Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from . import models
-from .database import SessionLocal, engine
+from .database import engine,get_db
 models.Base.metadata.create_all(bind=engine)
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 
 app = FastAPI()
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 
@@ -43,6 +38,10 @@ my_posts= [{"title":"title post 1","content":"content post 1", "id":1},
 async def root():
     return {"message":"welcome to my api"}
 
+@app.get("/sqlalchemy")
+async def test_posts(db:Session = Depends(get_db)):
+    return {"return": "success"}
+
 @app.get("/posts")
 async def get_post():
     cusor.execute(""" SELECT * FROM posts""")
@@ -57,27 +56,17 @@ async def create_post(post:Post):
     return {"data":new_post}
 
 
-def find_post(id):
-    for post in my_posts:
-        if post['id'] == id:
-            return post
 
 @app.get("/posts/{id}")
 async def get_post(id:int):
     cusor.execute(""" SELECT * FROM posts WHERE id = %s""",(str(id)))
     post=cusor.fetchone()
-    post = find_post(id)
     if not post:
        raise HTTPException(
            status_code= status.HTTP_404_NOT_FOUND,
            detail=f"post with the id of {id} not found"
        )
     return {"data":post}
-
-def find_index_post(id):
-    for i,p in enumerate(my_posts):
-        if p['id'] == id:
-            return i
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
