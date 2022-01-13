@@ -30,8 +30,9 @@ class User(UserBase):
 class UserOut(BaseModel):
     id:int
     email: EmailStr
-    password:str
     created_at = datetime
 
     class Config:
         orm_mode = True
+
+
