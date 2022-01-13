@@ -1,15 +1,20 @@
+from enum import auto
 from typing import Optional,List
 from fastapi import FastAPI, Response,status
 from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy.util.deprecations import deprecated
 from . import models, schemas
 from .database import engine,get_db
 models.Base.metadata.create_all(bind=engine)
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from passlib.context import CryptContext
 import time
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI()
 
@@ -32,22 +37,11 @@ async def root():
 
 @app.get("/posts", response_model=List[schemas.Post])
 async def get_post(db:Session = Depends(get_db)):
-    # fetch with regular SQL Query
-    # cusor.execute(""" SELECT * FROM posts""")
-    # posts=cusor.fetchall()
-    # ----------------------------
-    # Fetch with SQL Alchemy ORM 
     posts = db.query(models.Post).all()
     return posts
 
 @app.post("/posts", response_model=schemas.Post ,status_code=status.HTTP_201_CREATED)
 async def create_post(post:schemas.PostCreate, db:Session=Depends(get_db)):
-    # Perfroms operation with plain SQL Query 
-    # cusor.execute(""" INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,(post.title, post.content, post.published))
-    # new_post = cusor.fetchone()
-    # conn.commit()
-    # --------------
-    # working with ORM SQL Alchemy
     new_post = models.Post(**post.dict())
     db.add(new_post)
     db.commit()
@@ -59,11 +53,6 @@ async def create_post(post:schemas.PostCreate, db:Session=Depends(get_db)):
 
 @app.get("/posts/{id}",response_model=schemas.Post)
 async def get_post(id:int, db:Session=Depends(get_db)):
-    # Regular SQL Command
-    # cusor.execute(""" SELECT * FROM posts WHERE id = %s""",(str(id)))
-    # post=cusor.fetchone()
-    # ----------
-    # working with SQL ALchemy ORM
     post = db.query(models.Post).filter(models.Post.id == id).first()  
 
     if not post:
@@ -76,12 +65,6 @@ async def get_post(id:int, db:Session=Depends(get_db)):
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(id:int,db:Session=Depends(get_db)):
-    # Delete with Plain SQL Command
-    # cusor.execute(""" DELETE FROM posts WHERE id = %s RETURNING * """,str(id))
-    # deleted_post= cusor.fetchone()
-    # conn.commit()
-    # -------------
-    # Delete with SQL Alchemy ORM 
     post = db.query(models.Post).filter(models.Post.id == id)
     if post.first() == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with the id:{id} does not exist")
@@ -93,12 +76,6 @@ async def delete_post(id:int,db:Session=Depends(get_db)):
 
 @app.put("/posts/{id}", response_model=schemas.Post)
 async def update_posts(id:int, updated_post:schemas.PostCreate, db:Session=Depends(get_db)):
-    # Updating With Regular SQL function
-    # cusor.execute(""" UPDATE posts SET title=%s, content=%s, published=%s  WHERE id=%s RETURNING * """,(post.title, post.content, post.published,str(id)))
-    # updated_post = cusor.fetchone()
-    # conn.commit()
-    # ----------
-    # Updating with SQL Alchemy ORM
     post_query=db.query(models.Post).filter(models.Post.id==id)
     post = post_query.first()
     if post == None:
@@ -107,3 +84,14 @@ async def update_posts(id:int, updated_post:schemas.PostCreate, db:Session=Depen
     post_query.update(updated_post.dict(),synchronize_session=False)
     db.commit()
     return post_query.first()
+
+@app.post("/createusers",status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
+async def create_user(user:schemas.User, db:Session=Depends(get_db)):
+    # hash the password user.password
+    hashed_password = pwd_context.hash(user.password)
+    user.password = hashed_password
+    new_user = models.User(**user.dict())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
