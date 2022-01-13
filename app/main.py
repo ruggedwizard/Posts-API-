@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional,List
 from fastapi import FastAPI, Response,status
 from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends
@@ -26,24 +26,11 @@ while True:
         print("Error: ", error)
         time.sleep(6)
 
-# class Post(BaseModel):
-#     title: str
-#     content: str
-#     published: bool = True
-
-# my_posts= [{"title":"title post 1","content":"content post 1", "id":1}, 
-#            {"title":"Final Year Plans","content":"Beat the VC","id":2}]
 @app.get("/")
 async def root():
     return {"message":"welcome to my api"}
 
-@app.get("/sqlalchemy")
-async def test_posts(db:Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-
-    return {"return": posts}
-
-@app.get("/posts")
+@app.get("/posts", response_model=List[schemas.Post])
 async def get_post(db:Session = Depends(get_db)):
     # fetch with regular SQL Query
     # cusor.execute(""" SELECT * FROM posts""")
@@ -51,10 +38,10 @@ async def get_post(db:Session = Depends(get_db)):
     # ----------------------------
     # Fetch with SQL Alchemy ORM 
     posts = db.query(models.Post).all()
-    return {"data":posts}
+    return posts
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
-async def create_post(post:schemas.Post, db:Session=Depends(get_db)):
+@app.post("/posts", response_model=schemas.Post ,status_code=status.HTTP_201_CREATED)
+async def create_post(post:schemas.PostCreate, db:Session=Depends(get_db)):
     # Perfroms operation with plain SQL Query 
     # cusor.execute(""" INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,(post.title, post.content, post.published))
     # new_post = cusor.fetchone()
@@ -66,11 +53,11 @@ async def create_post(post:schemas.Post, db:Session=Depends(get_db)):
     db.commit()
     db.refresh(new_post)
 
-    return {"data":new_post}
+    return new_post
 
 
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}",response_model=schemas.Post)
 async def get_post(id:int, db:Session=Depends(get_db)):
     # Regular SQL Command
     # cusor.execute(""" SELECT * FROM posts WHERE id = %s""",(str(id)))
@@ -84,7 +71,7 @@ async def get_post(id:int, db:Session=Depends(get_db)):
            status_code= status.HTTP_404_NOT_FOUND,
            detail=f"post with the id of {id} not found"
        )
-    return {"data":post}
+    return post
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -104,8 +91,8 @@ async def delete_post(id:int,db:Session=Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/posts/{id}")
-async def update_posts(id:int, updated_post:schemas.Post, db:Session=Depends(get_db)):
+@app.put("/posts/{id}", response_model=schemas.Post)
+async def update_posts(id:int, updated_post:schemas.PostCreate, db:Session=Depends(get_db)):
     # Updating With Regular SQL function
     # cusor.execute(""" UPDATE posts SET title=%s, content=%s, published=%s  WHERE id=%s RETURNING * """,(post.title, post.content, post.published,str(id)))
     # updated_post = cusor.fetchone()
@@ -119,4 +106,4 @@ async def update_posts(id:int, updated_post:schemas.Post, db:Session=Depends(get
     
     post_query.update(updated_post.dict(),synchronize_session=False)
     db.commit()
-    return {"data":post_query.first()}
+    return post_query.first()
