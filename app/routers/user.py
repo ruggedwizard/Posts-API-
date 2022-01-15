@@ -20,6 +20,7 @@ async def create_user(user:schemas.User, db:Session=Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
+
 @router.get("/users/{id}", response_model=schemas.UserOut)
 async def get_user(id:int, db:Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == id).first()

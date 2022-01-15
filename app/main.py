@@ -1,13 +1,14 @@
 from fastapi import FastAPI, APIRouter
 
 from app import models
-from .database import engine,get_db
+from .database import engine
+
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from passlib.context import CryptContext
 import time
-from .routers import post, user
+from app.routers import post, user, auth
 models.Base.metadata.create_all(bind=engine)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -15,6 +16,7 @@ app = FastAPI()
 
 router = APIRouter()
 app.include_router(post.router)
+app.include_router(auth.router)
 app.include_router(user.router)
 
 

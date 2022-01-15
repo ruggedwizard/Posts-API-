@@ -1,6 +1,8 @@
 from fastapi import Response, status, HTTPException, Depends, APIRouter
 from sqlalchemy.orm import Session
 from typing import List
+
+from app import oauth2
 from .. import models, schemas
 from .. database import get_db
 router = APIRouter()
@@ -23,7 +25,7 @@ async def create_post(post:schemas.PostCreate, db:Session=Depends(get_db)):
 
 
 @router.get("/posts/{id}",response_model=schemas.Post)
-async def get_post(id:int, db:Session=Depends(get_db)):
+async def get_post(id:int, db:Session=Depends(get_db), get_current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id).first()  
 
     if not post:
