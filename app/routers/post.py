@@ -40,10 +40,13 @@ async def get_post(id:int, db:Session=Depends(get_db),current_user: int = Depend
 
 
 @router.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(id:int,db:Session=Depends(get_db), user_id: int = Depends(oauth2.get_current_user)):
+async def delete_post(id:int,db:Session=Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id)
     if post.first() == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with the id:{id} does not exist")
+
+    if post.owner_id !=oauth2.get_current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="you are not Permited to take such action")
     
     post.delete(synchronize_session=False)
     db.commit()
@@ -51,11 +54,18 @@ async def delete_post(id:int,db:Session=Depends(get_db), user_id: int = Depends(
 
 
 @router.put("/posts/{id}", response_model=schemas.Post)
-async def update_posts(id:int, updated_post:schemas.PostCreate, db:Session=Depends(get_db),user_id: int = Depends(oauth2.get_current_user)):
+async def update_posts(id:int, updated_post:schemas.PostCreate, db:Session=Depends(get_db),current_user: int = Depends(oauth2.get_current_user)):
     post_query=db.query(models.Post).filter(models.Post.id==id)
     post = post_query.first()
+    
+    if post.owner_id !=oauth2.get_current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="you are not Permited to take such action")
+    
+
     if post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with the id:{id} does not exist")
+    
+
     
     post_query.update(updated_post.dict(),synchronize_session=False)
     db.commit()
