@@ -14,19 +14,18 @@ async def get_post(db:Session = Depends(get_db)):
     return posts
 
 @router.post("/posts", response_model=schemas.Post ,status_code=status.HTTP_201_CREATED)
-async def create_post(post:schemas.PostCreate, db:Session=Depends(get_db), user_id: int = Depends(oauth2.get_current_user)):
-    new_post = models.Post(owner_id=user_id,**post.dict())
+async def create_post(post:schemas.PostCreate, db:Session=Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
+    new_post = models.Post(owner_id=current_user.id,**post.dict())
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    print(user_id)
 
     return new_post
 
 
 
 @router.get("/posts/{id}",response_model=schemas.Post)
-async def get_post(id:int, db:Session=Depends(get_db)):
+async def get_post(id:int, db:Session=Depends(get_db),current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id).first()  
 
     if not post:
@@ -34,6 +33,9 @@ async def get_post(id:int, db:Session=Depends(get_db)):
            status_code= status.HTTP_404_NOT_FOUND,
            detail=f"post with the id of {id} not found"
        )
+    
+    if post.owner_id !=oauth2.get_current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="you are not Permited to take such action")
     return post
 
 
