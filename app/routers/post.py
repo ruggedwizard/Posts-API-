@@ -5,7 +5,9 @@ from typing import List
 from app import oauth2
 from .. import models, schemas, oauth2
 from .. database import get_db
-router = APIRouter()
+router = APIRouter(
+    tags=["posts"]
+)
 
 
 @router.get("/posts",response_model=List[schemas.Post])

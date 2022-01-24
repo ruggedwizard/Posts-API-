@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, utils
 from .. database import get_db
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Users"]
+)
 
 @router.post("/createusers",status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
 async def create_user(user:schemas.User, db:Session=Depends(get_db)):
