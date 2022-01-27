@@ -21,4 +21,9 @@ Routes available:
 
 *Delete Post 
 
+POSTS API USEAGE
+
+host/posts is free to use for all but to add to the post you must be logged in ie authenticted to be able to add to the posts. 
+
 #Still under Development Feel Free to Use#
+
